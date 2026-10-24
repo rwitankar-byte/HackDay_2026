@@ -1,0 +1,26 @@
+# Model Registry Configuration for Air-Gapped Karyalaya AI
+# Strictly local Ollama endpoints (http://localhost:11434)
+
+default_endpoint: "http://localhost:11434"
+
+models:
+  code:
+    name: "gemma4:e4b"
+    endpoint: "http://localhost:11434"
+    context_window: 8192
+    temperature: 0.1
+    description: "Gemma 4 E4B for code generation, script execution, and syntax debugging"
+
+  document:
+    name: "gemma4:e4b"
+    endpoint: "http://localhost:11434"
+    context_window: 8192
+    temperature: 0.2
+    description: "Gemma 4 E4B for reasoning, document drafting, SOP matching, and summaries"
+
+  vision:
+    name: "gemma4:e4b"
+    endpoint: "http://localhost:11434"
+    context_window: 8192
+    temperature: 0.2
+    description: "Gemma 4 E4B multimodal document inspection and scan understanding"
