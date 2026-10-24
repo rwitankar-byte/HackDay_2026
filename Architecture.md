@@ -4,7 +4,7 @@
 ```
 User (UI) 
   → Router (classifies task) 
-  → Model Pool (vLLM/Ollama, OpenAI-compatible endpoints)
+  → Model Pool (Ollama, OpenAI-compatible endpoints)
   → Agent Loop (plan → act → observe → reflect)
        → Tools: file_io, code_sandbox, doc_search (RAG), template_search, equipment_history, spreadsheet, doc_generator
        → Ingestion: OCR + Vision-Language model for scans/images
@@ -19,21 +19,21 @@ Network Monitor runs alongside everything, watching the container's egress at OS
 ### Prototype target: MacBook M4 (16–24GB+ unified memory, no GPU/CUDA)
 | Layer | Choice | Why |
 |---|---|---|
-| Model serving | **Ollama** (Mac-native, Apple Silicon optimized) or MLX | No CUDA needed, runs quantized GGUF models directly on M4 |
-| Coder model | Qwen2.5-Coder-7B (Q4/Q5 quantized) | Fits comfortably in 16GB, strong code gen |
-| Reasoning model | Qwen2.5-14B-Instruct (Q4 quantized) | Best reasoning quality that fits laptop memory; drop to 7B if RAM-constrained |
-| Vision model | Qwen2-VL-7B (quantized) | Reads handwriting, diagrams, scanned docs; heaviest component, needs 16GB+ free |
-| Embeddings | BGE-M3 or nomic-embed-text (CPU/MPS) | Local, no external calls, light enough for laptop |
-| Vector store | Chroma (local mode, file-based) | Multi-collection (`karyalaya_sops`, `karyalaya_templates`) with metadata filtering |
+| Model serving | **Ollama** (Mac-native, Apple Silicon optimized) | No CUDA needed, runs quantized GGUF models directly on Apple Silicon |
+| Document reasoning | **Google Gemma 4 E4B** (`gemma4:e4b`) | General reasoning, SOP matching, drafting; fits comfortably in laptop memory |
+| Coder model | **Qwen2.5-Coder 7B** (`qwen2.5-coder:7b`) | Strong code generation, script execution, syntax debugging |
+| Vision / Multimodal | **Google Gemma 4 E4B** (`gemma4:e4b`) / Qwen2-VL | Reads handwriting, diagrams, scanned inspection reports natively |
+| Embeddings | ChromaDB default embeddings | Local, no external calls, no separate model pull required |
+| Vector store | **ChromaDB** (local file-based, persistent) | Multi-collection (`karyalaya_sops`, `karyalaya_templates`) with metadata filtering |
 | OCR fallback | PaddleOCR / Tesseract (CPU) | Cheap first-pass text extraction |
 | Agent orchestration | Custom plan-execute-reflect loop | Full control, multi-turn session history, citation accumulation, contradiction detection |
 | Code sandbox | Docker Desktop for Mac, network disabled | Isolated, safe execution |
-| Doc generation | python-docx, python-pptx, openpyxl | Real Office file output with explicit typography, tables, and SOP citations |
+| Doc generation | python-docx, openpyxl | Real Office file output with explicit typography, tables, and SOP citations |
 | UI | FastAPI + Vanilla JS/CSS (Neumorphic) | Chat + uploads (SOP/Template/Scan) + live trace + network monitor + deliverables filter |
 | Network proof | macOS `pfctl` egress-deny + live connection counter dashboard | Visual, real-time proof of zero external calls |
 
-### Production target (Phase 9, real GPU server)
-Swap Ollama → vLLM, Chroma → Qdrant, and lift model size caps (32B+ reasoning model becomes viable). No agent/tool code changes needed — this is exactly why the OpenAI-compatible endpoint abstraction matters.
+### Production target (future, real GPU server)
+Swap Ollama → vLLM, ChromaDB → Qdrant, and lift model size caps (32B+ reasoning model becomes viable). No agent/tool code changes needed — this is exactly why the OpenAI-compatible endpoint abstraction matters.
 
 **Cost note:** everything above is free and open-source (models + tools). No licensing cost on either the laptop prototype or the GPU server version.
 
@@ -41,11 +41,10 @@ Swap Ollama → vLLM, Chroma → Qdrant, and lift model size caps (32B+ reasonin
 ```
 sovereign-workbench/
 ├── router/
-│   ├── classifier.py
-│   └── model_registry.yaml
-├── models/                # served endpoints, not code — config only
+│   ├── classifier.py           # Task classification → model routing
+│   └── model_registry.yaml     # Model definitions: gemma4:e4b, qwen2.5-coder:7b, qwen2-vl:7b
 ├── agent/
-│   ├── planner.py         # Autonomous multi-step agent with multi-turn history & contradiction checks
+│   ├── planner.py              # Autonomous multi-step agent with multi-turn history & contradiction checks
 │   └── tools/
 │       ├── file_io.py
 │       ├── code_sandbox.py
@@ -56,9 +55,9 @@ sovereign-workbench/
 │       └── doc_generator.py    # Explicitly styled DOCX generator with human sign-off gate
 ├── ingestion/
 │   ├── ocr.py
-│   └── vlm_reader.py
+│   └── vlm_reader.py          # Uses gemma4:e4b with fallback candidates (qwen2-vl:7b, llava)
 ├── knowledge_base/
-│   ├── vector_store/
+│   ├── vector_store/           # ChromaDB persistent storage
 │   └── ingest_pipeline.py     # Structural chunking, metadata tagging, supersede_document()
 ├── network_monitor/
 │   └── egress_watchdog.py
@@ -68,7 +67,7 @@ sovereign-workbench/
 │       ├── index.html         # Control room UI with style templates & deliverable search
 │       ├── style.css
 │       └── app.js
-└── docker-compose.yml         # everything on an isolated network, no internet route
+└── test_flagship_pipeline.py  # End-to-end integration test
 ```
 
 ## Note on Mac deployment specifics
@@ -85,8 +84,8 @@ sovereign-workbench/
 
 ## Data flow for the flagship demo task (scanned report → approval note)
 1. User uploads scanned PDF/image via UI.
-2. `ingestion/vlm_reader.py` (or OCR fallback for clean text) extracts findings.
-3. Router classifies this as a "document reasoning" task → sends extracted text to reasoning model.
+2. `ingestion/vlm_reader.py` (using `gemma4:e4b`, with OCR / vision model fallback) extracts findings.
+3. Router classifies this as a "document reasoning" task → sends extracted text to `gemma4:e4b`.
 4. Agent plans: extract key findings → check against relevant SOP via `doc_search` (RAG) → draft note → call `doc_generator` to produce .docx.
 5. Agent reflects: does the draft cover all required approval-note sections? If not, loop back.
 6. Final .docx returned to user; full tool-call trace shown in UI.

@@ -30,6 +30,7 @@ class ModelRouter:
         Classifies request into 'code', 'vision', or 'document'.
         Returns (task_type, model_config, rationale).
         """
+        self.config = self._load_config()
         if has_image:
             task_type = "vision"
             rationale = "Image/scan upload detected. Routing to vision pipeline."
