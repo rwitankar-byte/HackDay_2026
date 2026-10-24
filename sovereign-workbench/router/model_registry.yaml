@@ -1,0 +1,26 @@
+# Model Registry Configuration for Air-Gapped Karyalaya AI
+# Strictly local Ollama endpoints (http://localhost:11434)
+
+default_endpoint: "http://localhost:11434"
+
+models:
+  code:
+    name: "qwen2.5-coder:7b"
+    endpoint: "http://localhost:11434"
+    context_window: 8192
+    temperature: 0.1
+    description: "Code generation, script execution, and syntax debugging"
+
+  document:
+    name: "qwen2.5:7b"  # 14B model (qwen2.5:14b) supported when deployed on higher RAM/GPU
+    endpoint: "http://localhost:11434"
+    context_window: 8192
+    temperature: 0.2
+    description: "General reasoning, document drafting, SOP matching, and summary"
+
+  vision:
+    name: "qwen2-vl:7b" # Also maps to local vision models (qwen2-vl / llava:7b)
+    endpoint: "http://localhost:11434"
+    context_window: 4096
+    temperature: 0.2
+    description: "Multimodal document inspection and scan understanding"
