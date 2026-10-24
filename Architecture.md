@@ -1,6 +1,7 @@
-# Architecture — Karyalaya AI
+# Architecture Specification — Karyalay AI
+**HackDay 2026 — Milestone 1**
 
-## High-level flow
+## High-Level Flow
 ```
 User (UI) 
   → Router (classifies task) 
@@ -11,83 +12,72 @@ User (UI)
   → Human Sign-Off Gate
   → Deliverable (.docx) + Reasoning Audit Trace (_trace.md) back to user
   
-Network Monitor runs alongside everything, watching the container's egress at OS/firewall level.
+Network Monitor runs alongside everything, watching host & container egress at OS/firewall level.
 ```
 
-## Tech stack
+---
 
-### Prototype target: MacBook M4 (16–24GB+ unified memory, no GPU/CUDA)
-| Layer | Choice | Why |
+## Tech Stack & Hardware Target
+
+### Prototype Target: MacBook M-Series / Linux Workstation (16–24GB+ Unified Memory)
+| Layer | Choice | Rationale |
 |---|---|---|
-| Model serving | **Ollama** (Mac-native, Apple Silicon optimized) or MLX | No CUDA needed, runs quantized GGUF models directly on M4 |
-| Coder model | Qwen2.5-Coder-7B (Q4/Q5 quantized) | Fits comfortably in 16GB, strong code gen |
-| Reasoning model | Qwen2.5-14B-Instruct (Q4 quantized) | Best reasoning quality that fits laptop memory; drop to 7B if RAM-constrained |
-| Vision model | Qwen2-VL-7B (quantized) | Reads handwriting, diagrams, scanned docs; heaviest component, needs 16GB+ free |
-| Embeddings | BGE-M3 or nomic-embed-text (CPU/MPS) | Local, no external calls, light enough for laptop |
-| Vector store | Chroma (local mode, file-based) | Multi-collection (`karyalaya_sops`, `karyalaya_templates`) with metadata filtering |
-| OCR fallback | PaddleOCR / Tesseract (CPU) | Cheap first-pass text extraction |
-| Agent orchestration | Custom plan-execute-reflect loop | Full control, multi-turn session history, citation accumulation, contradiction detection |
-| Code sandbox | Docker Desktop for Mac, network disabled | Isolated, safe execution |
-| Doc generation | python-docx, python-pptx, openpyxl | Real Office file output with explicit typography, tables, and SOP citations |
-| UI | FastAPI + Vanilla JS/CSS (Neumorphic) | Chat + uploads (SOP/Template/Scan) + live trace + network monitor + deliverables filter |
-| Network proof | macOS `pfctl` egress-deny + live connection counter dashboard | Visual, real-time proof of zero external calls |
+| **Model Serving** | **Ollama** (Apple Silicon / CPU / CUDA) | Local inference engine exposing OpenAI-compatible REST endpoints. |
+| **Coder Model** | `Qwen2.5-Coder-7B` (Q4/Q5 quantized) | High-efficiency code generation fitting comfortably in consumer memory. |
+| **Reasoning Model** | `Qwen2.5-14B-Instruct` (or `7B`) | Instruction adherence and deep document reasoning. |
+| **Vision Model** | `Qwen2-VL-7B` | Ingests engineering drawings, handwritten notes, and scanned inspection logs. |
+| **Embeddings** | `nomic-embed-text` / `BGE-M3` | Local, lightweight embeddings with zero external telemetry. |
+| **Vector Store** | `ChromaDB` (local embedded mode) | Multi-collection store (`karyalaya_sops`, `karyalaya_templates`) with metadata filtering. |
+| **OCR Fallback** | `PaddleOCR` / `Tesseract` | Fast CPU-based text extraction for clean scans. |
+| **Agent Orchestration** | Custom Plan-Act-Observe-Reflect Loop | Deterministic tool execution, citation tracking, and contradiction detection. |
+| **Code Sandbox** | Docker Desktop (`--network none`) | Isolated, network-disabled execution environment. |
+| **Doc Generation** | `python-docx`, `python-pptx`, `openpyxl` | Programmatic deliverable rendering with corporate typography and citation tables. |
+| **UI** | FastAPI + Vanilla JS/CSS (Neumorphic) | Tactile interface with SSE live streams and real-time egress monitor. |
+| **Network Proof** | macOS `pfctl` / Linux `iptables` | Kernel-level firewall socket counter verifying 0 outbound calls. |
 
-### Production target (Phase 9, real GPU server)
-Swap Ollama → vLLM, Chroma → Qdrant, and lift model size caps (32B+ reasoning model becomes viable). No agent/tool code changes needed — this is exactly why the OpenAI-compatible endpoint abstraction matters.
+### Enterprise GPU Target (Future Scaling)
+Swap Ollama → vLLM, Chroma → Qdrant cluster, and lift model size caps (32B–72B models). Because all model access uses OpenAI-compatible endpoint specifications, the agent and tool logic require zero refactoring.
 
-**Cost note:** everything above is free and open-source (models + tools). No licensing cost on either the laptop prototype or the GPU server version.
+---
 
-## Folder structure
+## Planned Codebase Structure (To be built across Milestones)
+
 ```
-sovereign-workbench/
-├── router/
-│   ├── classifier.py
-│   └── model_registry.yaml
-├── models/                # served endpoints, not code — config only
-├── agent/
-│   ├── planner.py         # Autonomous multi-step agent with multi-turn history & contradiction checks
-│   └── tools/
-│       ├── file_io.py
-│       ├── code_sandbox.py
-│       ├── doc_search.py       # SOP vector retriever with status filtering and citations
-│       ├── template_search.py  # Approved style templates retriever
-│       ├── equipment_history.py# Prior deliverables equipment scanner via python-docx
-│       ├── spreadsheet.py
-│       └── doc_generator.py    # Explicitly styled DOCX generator with human sign-off gate
-├── ingestion/
-│   ├── ocr.py
-│   └── vlm_reader.py
-├── knowledge_base/
-│   ├── vector_store/
-│   └── ingest_pipeline.py     # Structural chunking, metadata tagging, supersede_document()
-├── network_monitor/
-│   └── egress_watchdog.py
-├── ui/
-│   ├── app.py                 # FastAPI SSE backend, template uploads, deliverable trace exporter
-│   └── static/
-│       ├── index.html         # Control room UI with style templates & deliverable search
-│       ├── style.css
-│       └── app.js
-└── docker-compose.yml         # everything on an isolated network, no internet route
+HackDay_2026/
+├── README.md                           # Milestone overview & progress tracking
+├── Architecture.md                     # Architectural decisions & component specs
+├── PRD.md                              # Product Requirements Document
+├── Phases.md                           # Hackathon milestone roadmap
+├── Rules.md                            # Hard engineering & air-gapped constraints
+├── requirements.txt                    # Python dependencies
+├── .gitignore                          # Git ignore rules
+│
+└── sovereign-workbench/                # Core Workbench Package
+    ├── router/                         # Milestone 2: Dynamic model router & configs
+    │   ├── classifier.py               # Rule-based & embedding task classifier
+    │   └── model_registry.yaml         # Config-driven model endpoints & limits
+    ├── knowledge_base/                 # Milestone 3: Local Chroma vector store & SOP ingest
+    │   ├── vector_store/               # Local persistent Chroma vector store
+    │   └── ingest_pipeline.py          # Structural chunking & supersede_document()
+    ├── agent/                          # Milestone 4: Autonomous plan-act-reflect loop & tools
+    │   ├── planner.py                  # Agent orchestrator with contradiction checks
+    │   └── tools/                      # Scoped toolset (file_io, sandbox, doc_search, docx)
+    ├── ingestion/                      # Milestone 5: OCR & Vision-Language ingestion
+    │   ├── ocr.py                      # Local OCR fallback
+    │   └── vlm_reader.py               # Vision-Language Model interpreter
+    ├── network_monitor/                # Milestone 7: Real-time pfctl/iptables egress watchdog
+    │   └── egress_watchdog.py          # Socket and firewall watchdog daemon
+    └── ui/                             # Milestone 8: FastAPI server & Neumorphic frontend
+        ├── app.py                      # FastAPI server & SSE streaming
+        └── static/                     # Neumorphic HTML/CSS/JS frontend
 ```
 
-## Note on Mac deployment specifics
-- Ollama runs as a local background service (`ollama serve`) exposing an OpenAI-compatible endpoint on `localhost:11434` — the router treats it exactly like it would treat vLLM.
-- Docker Desktop for Mac still supports `--network none` for the code sandbox — egress lockdown works the same way.
-- The network monitor uses `pfctl` (macOS's built-in firewall) instead of iptables/nftables, same concept: deny-all egress, live connection count in the UI.
+---
 
-## Key architectural decisions
-1. **Router is config-driven, not hardcoded.** `model_registry.yaml` maps task-type → model endpoint → context window/params. Adding a new model = new YAML entry + pulling weights. No code change.
-2. **All model access goes through OpenAI-compatible local endpoints.** Keeps the agent code model-agnostic; swapping vLLM for Ollama doesn't touch agent logic.
-3. **Code sandbox has its network interface disabled at the Docker level**, not just "the code doesn't call anything." Enforced, not trusted.
-4. **RAG is retrieval-only, local.** No hosted embedding APIs. Vector store persists on disk inside the org's server.
-5. **Network monitor is a separate process watching the host/container egress**, independent of the app itself — so it can't be silently bypassed by a bug in the agent code.
+## Key Architectural Decisions
 
-## Data flow for the flagship demo task (scanned report → approval note)
-1. User uploads scanned PDF/image via UI.
-2. `ingestion/vlm_reader.py` (or OCR fallback for clean text) extracts findings.
-3. Router classifies this as a "document reasoning" task → sends extracted text to reasoning model.
-4. Agent plans: extract key findings → check against relevant SOP via `doc_search` (RAG) → draft note → call `doc_generator` to produce .docx.
-5. Agent reflects: does the draft cover all required approval-note sections? If not, loop back.
-6. Final .docx returned to user; full tool-call trace shown in UI.
-7. Network monitor panel shows 0 external connections throughout.
+1. **Config-Driven Model Router**: Model endpoints, context windows, and parameters are declared in `model_registry.yaml`. Adding or switching models requires zero agent code changes.
+2. **Strict Protocol Abstraction**: All local model calls use standard OpenAI-compatible endpoints (`localhost:11434`), ensuring transparent portability between Ollama, vLLM, and llama.cpp.
+3. **Hard-Enforced Sandbox Isolation**: The code execution sandbox has network interfaces disabled at the container level (`--network none`).
+4. **Local-Only Persistent Vector Store**: Vector embeddings and metadata indices run on disk locally without any hosted cloud API dependency.
+5. **Decoupled Egress Watchdog**: The network monitor operates as an independent daemon polling system firewall states (`pfctl` / `iptables`) to guarantee unbiased audit verification.

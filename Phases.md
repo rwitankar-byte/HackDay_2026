@@ -1,42 +1,75 @@
-# Phases — Karyalaya AI
+# HackDay 2026 Milestone Delivery Plan — Karyalay AI
 
-## Phase 1 — Model serving + router skeleton
-- Install Ollama on the M4 MacBook, pull 2 quantized models (Qwen2.5-Coder-7B, Qwen2.5-14B-Instruct).
-- Build `model_registry.yaml` and `classifier.py` — route a request to the right model.
-- Prove: send a code prompt and a summarization prompt, log which model handled each.
+## Milestone 1: Project Kickoff & Foundation Architecture (Completed / Active)
+- Define problem statement, operational scenarios, and air-gapped constraints.
+- Formulate high-level system architecture and component design (`Architecture.md`).
+- Document Product Requirements Document (`PRD.md`) and evaluation criteria.
+- Establish hard engineering rules and sovereignty mandates (`Rules.md`).
+- Specify initial environment dependencies (`requirements.txt`) and setup instructions.
 
-## Phase 2 — Local knowledge base (RAG)
-- Set up Chroma (local file-based), ingest a handful of sample SOPs/manuals.
-- Build `doc_search` tool, wire into a basic single-shot Q&A (no agent loop yet).
-- Prove: ask a question answerable only from the ingested docs, get a grounded answer.
+---
 
-## Phase 3 — Agent loop + core tools
-- Build plan → act → observe → reflect loop.
-- Wire up `file_io`, `code_sandbox` (Docker Desktop, `--network none`), `spreadsheet`.
-- Prove: multi-step task (e.g. "read this CSV, compute totals, write a summary file") completes without human intervention mid-task.
+## Milestone 2: Model Serving & Routing Infrastructure (Upcoming)
+- Setup local inference server (Ollama) with quantized open-weight models (`Qwen2.5-Coder-7B`, `Qwen2.5-14B-Instruct`, `Qwen2-VL-7B`).
+- Implement declarative model registry (`model_registry.yaml`).
+- Develop intelligent task classifier (`router/classifier.py`) for automated intent-to-model routing.
+- **Verification**: Route coding prompts and document reasoning prompts, confirming correct model allocation via logs.
 
-## Phase 4 — Multimodal ingestion
-- Add OCR fallback + vision-language model reader for scans/handwriting/photos.
-- Prove: feed a scanned/handwritten sample doc, get accurate extracted text.
+---
 
-## Phase 5 — Deliverable generation
-- Build `doc_generator` — docx/pptx/xlsx output from agent-produced content.
-- Prove: agent produces a properly formatted approval note as a real .docx file that opens cleanly.
+## Milestone 3: Local Knowledge Base (RAG) & Vector Storage (Upcoming)
+- Configure local file-based vector storage via ChromaDB.
+- Build document ingestion pipeline with structural chunking and metadata enrichment (`knowledge_base/ingest_pipeline.py`).
+- Implement SOP supersede functionality to deprecate obsolete standards.
+- Build `doc_search` retrieval tool with citation tracking.
+- **Verification**: Ingest plant SOPs and demonstrate grounded document Q&A without cloud connectivity.
 
-## Phase 6 — Flagship end-to-end demo task
-- Wire Phases 2–5 together: scanned inspection report → findings extraction → SOP-grounded drafting → .docx approval note.
-- Prove: full pipeline runs start to finish on a sample report.
+---
 
-## Phase 7 — Network sovereignty monitor
-- Lock down egress using macOS `pfctl` (deny-all outbound except localhost) plus Docker `--network none` for the sandbox.
-- Build live dashboard/log showing real-time outbound connection count.
-- Prove: dashboard sits at 0 throughout a full demo run, including a deliberate attempt to reach the internet (should fail/be blocked visibly).
+## Milestone 4: Autonomous Plan-Act-Observe-Reflect Agent Loop (Upcoming)
+- Implement autonomous multi-step reasoning orchestrator (`agent/planner.py`).
+- Develop core execution tools:
+  - `file_io`: Scoped workspace reader/writer.
+  - `code_sandbox`: Docker execution sandbox with `--network none`.
+  - `spreadsheet`: Tabular calculation and CSV/Excel aggregation.
+- Build reflection and contradiction detection against historical equipment records.
+- **Verification**: Complete multi-step data processing task without human intervention mid-flight.
 
-## Phase 8 — UI polish + demo script
-- Single UI: chat + upload + live agent trace + network monitor panel, side by side.
-- Write and rehearse the demo script: model routing demo → agentic doc task → coding task → multimodal task → network proof, in that order.
+---
 
-## Phase 9 (post-demo, not required for prototype)
-- Move off the M4 MacBook onto an org GPU server: swap Ollama → vLLM, Chroma → Qdrant, lift the 7B–14B size cap (32B+ reasoning models become viable).
-- Multi-user auth/RBAC, audit logging, model hot-swapping without downtime, scaling to multi-GPU.
-- Everything in Phases 1–8 stays free/open-source at this stage too — only the GPU hardware itself is a real cost.
+## Milestone 5: Multimodal Document Ingestion (Upcoming)
+- Integrate local OCR fallback (Tesseract/PaddleOCR) for quick text extraction.
+- Implement Vision-Language Model interpreter (`ingestion/vlm_reader.py`) for handwritten logs and diagram interpretation.
+- Surface low-confidence visual warnings for unreadable scans.
+- **Verification**: Ingest low-quality scanned inspection sheets and extract structured technical parameters.
+
+---
+
+## Milestone 6: Office Deliverable Generation & Sign-Off Governance (Upcoming)
+- Build `doc_generator` using `python-docx` with corporate typography, metadata tables, and citation appendices.
+- Enforce cryptographic permission gates: AI agent is restricted to generating review drafts.
+- Implement human-in-the-loop authorization workflow that finalizes official documents and writes execution audit traces (`_trace.md`).
+- **Verification**: Generate valid, beautifully formatted `.docx` approval notes with accompanying trace logs.
+
+---
+
+## Milestone 7: Real-Time Network Sovereignty Watchdog (Upcoming)
+- Implement background host monitor (`network_monitor/egress_watchdog.py`) inspecting socket activity via `pfctl` (macOS) or `iptables` (Linux).
+- Provide real-time socket statistics and egress alert triggers.
+- **Verification**: Maintain zero outbound connections across a complete execution pipeline.
+
+---
+
+## Milestone 8: Control Room UI & Flagship End-to-End Pipeline (Upcoming)
+- Develop responsive, tactile Neumorphic control room interface (FastAPI + Vanilla CSS/JS).
+- Feature live Server-Sent Events (SSE) streaming for agent reasoning steps, model routing, and socket monitor.
+- Implement inline document previews, deliverable search filters, and template upload modules.
+- **Verification**: Execute end-to-end flagship workflow (Scan ➔ VLM ➔ RAG ➔ Sandbox ➔ Draft ➔ Sign-off ➔ Deliverable).
+
+---
+
+## Milestone 9: Enterprise GPU Cluster Scaling (Post-Hackathon)
+- Transition model serving from Ollama to high-throughput vLLM cluster.
+- Migrate ChromaDB to distributed Qdrant vector cluster.
+- Unlock 32B–72B reasoning models (`Qwen2.5-72B`, `DeepSeek-R1-Distill`).
+- Integrate air-gapped LDAP/Active Directory RBAC and Hardware Security Module (HSM) digital signatures.
