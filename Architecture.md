@@ -23,9 +23,9 @@ Network Monitor runs alongside everything, watching host & container egress at O
 | Layer | Choice | Rationale |
 |---|---|---|
 | **Model Serving** | **Ollama** (Apple Silicon / CPU / CUDA) | Local inference engine exposing OpenAI-compatible REST endpoints. |
-| **Coder Model** | `Qwen2.5-Coder-7B` (Q4/Q5 quantized) | High-efficiency code generation fitting comfortably in consumer memory. |
-| **Reasoning Model** | `Qwen2.5-14B-Instruct` (or `7B`) | Instruction adherence and deep document reasoning. |
-| **Vision Model** | `Qwen2-VL-7B` | Ingests engineering drawings, handwritten notes, and scanned inspection logs. |
+| **Reasoning Model** | **Google Gemma 4** (12B Unified Multimodal / E4B) | Apache 2.0 open weights, frontier reasoning & tool calling, runs locally on ~16GB unified memory. (Fallback: `Qwen2.5-14B`) |
+| **Coder Model** | `Qwen2.5-Coder-7B` (Q4/Q5 quantized) / Gemma 4 Code | High-efficiency code generation fitting comfortably in consumer memory. |
+| **Vision & Multimodal** | **Gemma 4 12B** (Encoder-free native multimodal) / `Qwen2-VL-7B` | Direct multimodal ingestion of engineering drawings, handwriting, and scanned inspection sheets. |
 | **Embeddings** | `nomic-embed-text` / `BGE-M3` | Local, lightweight embeddings with zero external telemetry. |
 | **Vector Store** | `ChromaDB` (local embedded mode) | Multi-collection store (`karyalaya_sops`, `karyalaya_templates`) with metadata filtering. |
 | **OCR Fallback** | `PaddleOCR` / `Tesseract` | Fast CPU-based text extraction for clean scans. |

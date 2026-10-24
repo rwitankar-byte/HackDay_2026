@@ -10,7 +10,7 @@
 ---
 
 ## Milestone 2: Model Serving & Routing Infrastructure (Upcoming)
-- Setup local inference server (Ollama) with quantized open-weight models (`Qwen2.5-Coder-7B`, `Qwen2.5-14B-Instruct`, `Qwen2-VL-7B`).
+- Setup local inference server (Ollama) with quantized open-weight models (**Google Gemma 4 12B/E4B**, `Qwen2.5-Coder-7B`, `Qwen2-VL-7B`).
 - Implement declarative model registry (`model_registry.yaml`).
 - Develop intelligent task classifier (`router/classifier.py`) for automated intent-to-model routing.
 - **Verification**: Route coding prompts and document reasoning prompts, confirming correct model allocation via logs.

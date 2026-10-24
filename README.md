@@ -31,7 +31,7 @@ We are developing Karyalay AI iteratively across dedicated milestones for HackDa
   - [x] Air-Gapped Engineering Rules & Hard Constraints ([`Rules.md`](Rules.md))
   - [x] Initial Dependency Environment Specification ([`requirements.txt`](requirements.txt))
 - [ ] **Milestone 2: Local Model Serving & Task Routing Engine**
-  - Ollama integration (Qwen2.5-Coder, Qwen2.5-14B, Qwen2-VL)
+  - Ollama integration (Google Gemma 4 12B/E4B, Qwen2.5-Coder-7B)
   - Config-driven router (`model_registry.yaml` & task classifier)
 - [ ] **Milestone 3: Local Knowledge Base (RAG) & Vector Store**
   - Local ChromaDB vector store
@@ -76,8 +76,8 @@ We are developing Karyalay AI iteratively across dedicated milestones for HackDa
         │   Local Model Pool      │                       │   UI Security Badge     │
         │  (Ollama Local Daemon)  │                       │   (0 Outbound Sockets)  │
         ├─────────────────────────┤                       └─────────────────────────┘
+        │ • Google Gemma 4 (12B)  │
         │ • Qwen2.5-Coder-7B      │
-        │ • Qwen2.5-14B-Instruct  │
         │ • Qwen2-VL-7B (Vision)  │
         │ • Nomic-Embed-Text / BGE│
         └────────────┬────────────┘
@@ -157,10 +157,9 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 4. Pull required local models in Ollama (in preparation for Milestone 2)
-ollama pull qwen2.5:14b          # Or qwen2.5:7b for machines with <16GB RAM
-ollama pull qwen2.5-coder:7b    # Coding & script generation
-ollama pull qwen2-vl:7b         # Multimodal document & diagram reasoning
-ollama pull nomic-embed-text    # Local vector embeddings
+ollama pull gemma4:12b           # Primary multimodal reasoning engine (Google Gemma 4)
+ollama pull qwen2.5-coder:7b     # Coding & script generation
+ollama pull nomic-embed-text     # Local vector embeddings
 ```
 
 ---
