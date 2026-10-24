@@ -28,10 +28,10 @@ def extract_text_ocr(image_path: str) -> Dict[str, Any]:
 
     try:
         img = preprocess_image(image_path)
-
+        
         # Get OCR data including confidence scores per word
         data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
-
+        
         text_words = []
         confidences = []
 

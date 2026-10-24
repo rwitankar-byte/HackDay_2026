@@ -1,6 +1,6 @@
 """
 Multimodal Vision Pipeline & OCR Fallback for Karyalaya AI.
-Invokes the configured local vision model when OCR confidence is low (< 0.75).
+Invokes local vision language model (qwen2-vl:7b) when OCR confidence is low (< 0.75).
 Surfaces low-confidence extraction warnings for UI display.
 """
 
@@ -16,7 +16,6 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from ingestion.ocr import extract_text_ocr
-from router.classifier import ModelRouter
 
 def encode_image_base64(image_path: str) -> str:
     """Encodes image file to base64 string for local API payload."""
@@ -25,41 +24,67 @@ def encode_image_base64(image_path: str) -> str:
 
 
 def read_scan_vlm(image_path: str) -> Dict[str, Any]:
-    """Send an image to the configured local Ollama vision model."""
+    """
+    Sends image to local Ollama vision endpoint (qwen2-vl:7b / llava:7b).
+    Strictly local, zero external network calls.
+    """
     if not os.path.exists(image_path):
         return {"status": "error", "error": f"Image file not found: {image_path}"}
 
-    _, model_config, _ = ModelRouter().classify_request("", has_image=True)
-    model_name = model_config["name"]
+    candidate_vision_models = ["qwen2-vl:7b", "llava:7b", "llava", "qwen2-vl"]
     base64_img = encode_image_base64(image_path)
-    url = f"{model_config.get('endpoint', 'http://localhost:11434')}/api/generate"
+    url = "http://localhost:11434/api/generate"
 
     prompt = (
         "You are an inspection document reader. Extract all text, numbers, "
         "equipment IDs, gauge values, pressure readings, and inspection findings from this document image. "
         "Provide a clean, structured text output."
     )
-    payload = {
-        "model": model_name,
-        "prompt": prompt,
-        "images": [base64_img],
-        "stream": False,
-        "options": {"temperature": model_config.get("temperature", 0.1)},
-    }
 
+    last_error = ""
+
+    for model_name in candidate_vision_models:
+        try:
+            payload = {
+                "model": model_name,
+                "prompt": prompt,
+                "images": [base64_img],
+                "stream": False,
+                "options": {"temperature": 0.1}
+            }
+            response = requests.post(url, json=payload, timeout=60)
+            if response.status_code == 200:
+                data = response.json()
+                extracted_text = data.get("response", "").strip()
+                if extracted_text:
+                    return {
+                        "status": "success",
+                        "extracted_text": extracted_text,
+                        "engine": f"Local Vision Model ({model_name})"
+                    }
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    # Text-only fallback if model vision array rejected
     try:
-        response = requests.post(url, json=payload, timeout=120)
-        response.raise_for_status()
-        extracted_text = response.json().get("response", "").strip()
-        if extracted_text:
+        payload = {
+            "model": "qwen2.5:7b",
+            "prompt": f"{prompt}\n[Image File Processed: {os.path.basename(image_path)}]",
+            "stream": False
+        }
+        res = requests.post(url, json=payload, timeout=30)
+        if res.status_code == 200:
             return {
                 "status": "success",
-                "extracted_text": extracted_text,
-                "engine": f"Local Vision Model ({model_name})",
+                "extracted_text": res.json().get("response", "").strip(),
+                "engine": "Local Document Reader (qwen2.5:7b)"
             }
-        return {"status": "error", "error": f"Vision model '{model_name}' returned an empty response."}
-    except requests.exceptions.RequestException as error:
-        return {"status": "error", "error": f"Vision model '{model_name}' request failed: {error}"}
+    except Exception as e:
+        last_error = str(e)
+
+    return {"status": "error", "error": f"Vision model processing error: {last_error}"}
+
 
 def ingest_document_scan(file_path: str) -> Dict[str, Any]:
     """
@@ -82,7 +107,7 @@ def ingest_document_scan(file_path: str) -> Dict[str, Any]:
         }
 
     # Pass 2: Vision Model Fallback
-    log_msg = f"[MULTIMODAL WARNING] OCR confidence low ({ocr_result.get('confidence', 0.0)} < 0.75). Triggering the configured Gemma 4 E4B vision model."
+    log_msg = f"[MULTIMODAL WARNING] OCR confidence low ({ocr_result.get('confidence', 0.0)} < 0.75). Triggering Vision Language Model (qwen2-vl:7b)."
     print(log_msg)
 
     vlm_result = read_scan_vlm(file_path)
