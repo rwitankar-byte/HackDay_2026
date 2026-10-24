@@ -4,7 +4,6 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Hackathon: HackDay 2026](https://img.shields.io/badge/Hackathon-HackDay%202026-orange.svg)]()
-[![Status: Milestone 1 Active](https://img.shields.io/badge/Status-Milestone%201%20Completed-brightgreen.svg)]()
 [![Architecture: 100% Air-Gapped](https://img.shields.io/badge/Network-Zero%20Egress%20Air--Gapped-emerald.svg)]()
 [![Inference: Local Open-Weight](https://img.shields.io/badge/Inference-Local%20Ollama%2FvLLM-blueviolet.svg)]()
 
@@ -20,38 +19,7 @@ In sovereign and classified operations, routine knowledge tasks (e.g., verifying
 
 ---
 
-## 🚀 HackDay 2026 Milestone Roadmap
-
-We are developing Karyalay AI iteratively across dedicated milestones for HackDay 2026:
-
-- [x] **Milestone 1: Project Foundation & Architecture (Current)**
-  - [x] Comprehensive System Architecture Blueprint ([`Architecture.md`](Architecture.md))
-  - [x] Product Requirements Document & Success Criteria ([`PRD.md`](PRD.md))
-  - [x] Phased Milestone Roadmap ([`Phases.md`](Phases.md))
-  - [x] Air-Gapped Engineering Rules & Hard Constraints ([`Rules.md`](Rules.md))
-  - [x] Initial Dependency Environment Specification ([`requirements.txt`](requirements.txt))
-- [ ] **Milestone 2: Local Model Serving & Task Routing Engine**
-  - Ollama integration (Google Gemma 4 12B/E4B, Qwen2.5-Coder-7B)
-  - Config-driven router (`model_registry.yaml` & task classifier)
-- [ ] **Milestone 3: Local Knowledge Base (RAG) & Vector Store**
-  - Local ChromaDB vector store
-  - Structural chunking & document supersede capabilities for plant SOPs
-- [ ] **Milestone 4: Autonomous Plan-Act-Observe-Reflect Agent Core**
-  - Multi-turn execution loop with dockerized isolated sandbox (`--network none`)
-  - Tooling: file I/O, spreadsheet computation, vector lookup, contradiction detector
-- [ ] **Milestone 5: Multimodal Document Ingestion**
-  - Local OCR fallback + Vision-Language model for scanned reports & handwritten logs
-- [ ] **Milestone 6: Office Deliverable Generation & Human Sign-off**
-  - Native `.docx` generation with corporate styling & audit trace export
-  - Strict human authorization permission gate
-- [ ] **Milestone 7: Real-Time Network Sovereignty Watchdog**
-  - Kernel/firewall socket monitoring (`pfctl` / `iptables`) providing live proof of 0 outbound sockets
-- [ ] **Milestone 8: Unified Control Room UI & Flagship End-to-End Pipeline**
-  - Tactile Neumorphic interface with live SSE stream & end-to-end integration test
-
----
-
-## 🏗️ Target System Architecture
+## 🏗️ System Architecture
 
 ```
                                   ┌────────────────────────┐
@@ -76,10 +44,10 @@ We are developing Karyalay AI iteratively across dedicated milestones for HackDa
         │   Local Model Pool      │                       │   UI Security Badge     │
         │  (Ollama Local Daemon)  │                       │   (0 Outbound Sockets)  │
         ├─────────────────────────┤                       └─────────────────────────┘
-        │ • Google Gemma 4 (12B)  │
-        │ • Qwen2.5-Coder-7B      │
-        │ • Qwen2-VL-7B (Vision)  │
-        │ • Nomic-Embed-Text / BGE│
+        │ • Google Gemma 4 E4B    │
+        │ • Qwen2.5-Coder 7B      │
+        │ • Qwen2-VL 7B (Fallback)│
+        │ • ChromaDB Embeddings   │
         └────────────┬────────────┘
                      │
                      ▼
@@ -111,30 +79,62 @@ We are developing Karyalay AI iteratively across dedicated milestones for HackDa
 
 ---
 
-## 📂 Repository Layout (Planned Development Structure)
+## 🔑 Key Features
+
+- **Config-Driven Model Router** — Auto-selects the right open-weight model per task type (code / document reasoning / vision-OCR) via `model_registry.yaml`.
+- **Autonomous Agent Loop** — Plans multi-step tasks, calls tools (file read/write, code sandbox, doc search, spreadsheet, doc generation), iterates with plan → act → observe → reflect.
+- **Multimodal Ingestion** — Reads scanned PDFs, handwritten notes, photographs, and engineering drawings via local OCR + vision-language model.
+- **Real Deliverables** — Outputs actual `.docx`/`.xlsx` files and runnable/verified code, not just chat text.
+- **Local Knowledge Base (RAG)** — Grounds answers in the org's own manuals/SOPs/correspondence using ChromaDB local vector store.
+- **Sovereignty Proof** — Live network monitor/dashboard showing zero external calls at any point during operation.
+
+---
+
+## 📂 Repository Layout
 
 ```
 HackDay_2026/
-├── README.md                           # Milestone overview & progress tracking
+├── README.md                           # Project overview & setup
 ├── Architecture.md                     # Architectural decisions & component specs
 ├── PRD.md                              # Product Requirements Document
-├── Phases.md                           # Hackathon milestone roadmap
+├── Phases.md                           # Development phases
 ├── Rules.md                            # Hard engineering & air-gapped constraints
 ├── requirements.txt                    # Python dependencies
 ├── .gitignore                          # Git ignore rules
 │
-└── sovereign-workbench/                # Core Workbench Package (To be built in upcoming milestones)
-    ├── router/                         # Milestone 2: Dynamic model router & configs
-    ├── knowledge_base/                 # Milestone 3: Local Chroma vector store & SOP ingest
-    ├── agent/                          # Milestone 4: Autonomous plan-act-reflect loop & tools
-    ├── ingestion/                      # Milestone 5: OCR & Vision-Language ingestion
-    ├── network_monitor/                # Milestone 7: Real-time pfctl/iptables egress watchdog
-    └── ui/                             # Milestone 8: FastAPI server & Neumorphic frontend
+└── sovereign-workbench/                # Core Workbench Package
+    ├── router/                         # Dynamic model router & configs
+    │   ├── classifier.py               # Task classification & model routing
+    │   └── model_registry.yaml         # Model → endpoint → params mapping
+    ├── knowledge_base/                 # Local ChromaDB vector store & SOP ingest
+    │   └── ingest_pipeline.py          # Structural chunking, metadata, supersede
+    ├── agent/                          # Autonomous plan-act-reflect loop & tools
+    │   ├── planner.py                  # Multi-step agent with contradiction checks
+    │   └── tools/
+    │       ├── file_io.py              # Scoped file read/write
+    │       ├── code_sandbox.py         # Docker --network none sandbox
+    │       ├── doc_search.py           # SOP vector retriever with citations
+    │       ├── template_search.py      # Approved style templates retriever
+    │       ├── equipment_history.py    # Prior deliverables equipment scanner
+    │       ├── spreadsheet.py          # Spreadsheet computation
+    │       └── doc_generator.py        # DOCX generator with human sign-off
+    ├── ingestion/                      # OCR & Vision-Language ingestion
+    │   ├── ocr.py                      # PaddleOCR / Tesseract fallback
+    │   └── vlm_reader.py              # Vision model for scans/images
+    ├── network_monitor/                # Real-time egress watchdog
+    │   └── egress_watchdog.py          # pfctl/iptables socket monitoring
+    ├── ui/                             # FastAPI server & Neumorphic frontend
+    │   ├── app.py                      # SSE backend, uploads, deliverable trace
+    │   └── static/
+    │       ├── index.html              # Control room UI
+    │       ├── style.css               # Neumorphic styling
+    │       └── app.js                  # Frontend logic
+    └── test_flagship_pipeline.py       # End-to-end integration test
 ```
 
 ---
 
-## ⚙️ Milestone 1: Environment Setup & Quickstart
+## ⚙️ Setup & Quickstart
 
 ### Prerequisites
 1. **Operating System**: macOS (Apple Silicon M-Series) or Linux (Ubuntu 22.04+ with GPU / CPU).
@@ -142,7 +142,7 @@ HackDay_2026/
 3. **Ollama**: Local open-weight serving daemon ([ollama.ai](https://ollama.ai/)).
 4. **Docker Desktop**: For isolated code sandbox execution.
 
-### Setup Instructions
+### Installation
 
 ```bash
 # 1. Clone the repository
@@ -153,20 +153,37 @@ cd HackDay_2026
 python3 -m venv venv
 source venv/bin/activate
 
-# 3. Install initial dependencies
+# 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Pull required local models in Ollama (in preparation for Milestone 2)
-ollama pull gemma4:12b           # Primary multimodal reasoning engine (Google Gemma 4)
-ollama pull qwen2.5-coder:7b     # Coding & script generation
-ollama pull nomic-embed-text     # Local vector embeddings
+# 4. Pull the required local models via Ollama
+ollama pull gemma4:e4b               # Primary multimodal reasoning engine (Google Gemma 4 E4B)
+ollama pull qwen2.5-coder:7b         # Code generation & script execution
+ollama pull qwen2-vl:7b              # Vision model fallback (optional)
+
+# 5. Start the Ollama server (if not already running)
+ollama serve
+
+# 6. Launch the application
+cd sovereign-workbench
+python -m ui.app
 ```
+
+### Model Summary
+
+| Task Type | Model | Size | Purpose |
+|---|---|---|---|
+| Document Reasoning | `gemma4:e4b` | ~4.5 GB | Primary reasoning, SOP matching, drafting, summaries (Google Gemma 4 E4B) |
+| Vision / Multimodal | `gemma4:e4b` | ~4.5 GB | Multimodal document inspection, scanned reports, handwriting |
+| Code Generation | `qwen2.5-coder:7b` | ~4.7 GB | Script generation, code execution, syntax debugging |
+| Vision Fallback | `qwen2-vl:7b` | ~4.7 GB | Secondary vision fallback for complex diagrams |
+| Embeddings | ChromaDB default | Built-in | Local vector embeddings for RAG (no separate model pull) |
 
 ---
 
 ## 🔒 Hard Security & Air-Gap Guarantees
 
-- **100% Offline Inference**: All models execute locally via Ollama / vLLM endpoints. Zero external API calls.
+- **100% Offline Inference**: All models execute locally via Ollama endpoints. Zero external API calls.
 - **Docker Egress Isolation**: Sandboxed code execution runs with `--network none`.
 - **Operating System Watchdog**: Host firewall rules (`pfctl` / `iptables`) monitor active sockets and verify zero outbound connections.
 - **Strict Filesystem Scoping**: File tools are locked to designated workspace directories.
@@ -176,4 +193,4 @@ ollama pull nomic-embed-text     # Local vector embeddings
 
 ## 📜 License
 
-Distributed under the **MIT License**. Open-weight models (Qwen series, Nomic Embed) are governed by their respective licenses.
+Distributed under the **MIT License**. Open-weight models (Qwen series) are governed by their respective licenses.

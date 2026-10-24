@@ -6,15 +6,25 @@
 - **Code sandbox always runs network-disabled.** No exceptions, no "just this once for pip install" — vendor dependencies ahead of time or use a pre-built image.
 - **All file operations stay inside a scoped workspace directory.** No agent tool may read/write outside the designated project/upload folder.
 
+## Models — current configuration
+| Task | Model | Registry Key |
+|---|---|---|
+| Document reasoning & drafting | `gemma4:e4b` (Google Gemma 4 E4B) | `document` |
+| Code generation & debugging | `qwen2.5-coder:7b` | `code` |
+| Vision / scanned documents | `gemma4:e4b` (with `qwen2-vl:7b` fallback) | `vision` |
+| Vector embeddings (RAG) | ChromaDB default | Built-in |
+
+All models served locally via **Ollama** (`localhost:11434`). Configuration in `model_registry.yaml`.
+
 ## Libraries — use
-- **Ollama** (Mac-native, no CUDA) for model serving on the M4 prototype — vLLM reserved for the future GPU-server deployment
-- python-docx, python-pptx, openpyxl for document generation
+- **Ollama** (Mac-native, no CUDA) for model serving — vLLM reserved for the future GPU-server deployment
+- python-docx, openpyxl for document generation
 - PaddleOCR / Tesseract for OCR fallback
-- **Chroma** (local file-based mode) for vector storage on the laptop prototype — Qdrant reserved for server deployment
+- **ChromaDB** (local file-based, persistent mode) for vector storage
 - Docker Desktop for Mac for sandboxing (`--network none`)
 
 ## Hardware constraints (M4 MacBook prototype)
-- Stay within 7B–14B quantized models (Q4/Q5 GGUF) — nothing larger fits reliably in laptop memory.
+- Stay within 7B quantized models (Q4/Q5 GGUF) — nothing larger fits reliably in laptop memory.
 - Don't run the vision model and the reasoning model concurrently on a 16GB machine — route/queue requests, don't parallelize model loads.
 - No GPU assumptions in code — everything must run on CPU/MPS only.
 
@@ -25,7 +35,7 @@
 
 ## Error handling
 - Every tool call wraps failures and reports them back to the agent loop as an observation, not a crash. Agent should retry or ask the user, not silently fail.
-- OCR/VLM extraction failures on a document должны surface as "low confidence, please verify" rather than hallucinated text.
+- OCR/VLM extraction failures on a document should surface as "low confidence, please verify" rather than hallucinated text.
 - Doc generation failures must never produce a corrupted file — validate the output file opens before returning it to the user.
 
 ## Agent behavior rules

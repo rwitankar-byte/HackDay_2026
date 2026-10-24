@@ -31,7 +31,7 @@ def read_scan_vlm(image_path: str) -> Dict[str, Any]:
     if not os.path.exists(image_path):
         return {"status": "error", "error": f"Image file not found: {image_path}"}
 
-    candidate_vision_models = ["qwen2-vl:7b", "llava:7b", "llava", "qwen2-vl"]
+    candidate_vision_models = ["gemma4:e4b", "gemma4", "qwen2-vl:7b", "llava:7b", "llava", "qwen2-vl"]
     base64_img = encode_image_base64(image_path)
     url = "http://localhost:11434/api/generate"
 
@@ -69,7 +69,7 @@ def read_scan_vlm(image_path: str) -> Dict[str, Any]:
     # Text-only fallback if model vision array rejected
     try:
         payload = {
-            "model": "qwen2.5:7b",
+            "model": "gemma4:e4b",
             "prompt": f"{prompt}\n[Image File Processed: {os.path.basename(image_path)}]",
             "stream": False
         }
