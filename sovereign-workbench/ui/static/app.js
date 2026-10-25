@@ -109,7 +109,10 @@ function applyTheme(theme) {
 }
 
 // ── Network Monitor ───────────────────────────────────────────────────────────
-async function initNetworkMonitor() { await updateNetworkStatus(); }
+async function initNetworkMonitor() {
+    await updateNetworkStatus();
+    setInterval(updateNetworkStatus, 5000);
+}
 
 async function updateNetworkStatus() {
     try {
@@ -118,6 +121,7 @@ async function updateNetworkStatus() {
         const data = await res.json();
 
         const isSecure = data.is_airgapped;
+        const pill     = document.getElementById("netBadgeBox");
         const text     = document.getElementById("netStatusText");
         const count    = document.getElementById("connCountBadge");
         const metric   = document.getElementById("metricConnCount");
@@ -125,9 +129,18 @@ async function updateNetworkStatus() {
         const sockVal  = document.getElementById("outboundSocketVal");
         const lastVal  = document.getElementById("lastVerifiedVal");
 
-        text.innerText  = isSecure ? "SECURE (AIR-GAPPED)" : "WARNING (EGRESS DETECTED)";
-        text.style.color = isSecure ? "var(--green-text)" : "var(--red-text)";
-        count.innerText = `${data.outbound_connection_count} Outbound`;
+        if (pill) {
+            pill.style.background = isSecure ? "var(--green-soft)" : "rgba(224, 49, 49, 0.16)";
+            pill.style.color = isSecure ? "var(--green)" : "var(--red, #e03131)";
+        }
+        if (text) {
+            text.innerText  = isSecure ? "Air-Gapped" : "WARNING (EGRESS DETECTED)";
+            text.style.color = isSecure ? "var(--green)" : "var(--red, #e03131)";
+        }
+        if (count) {
+            count.innerText = `${data.outbound_connection_count} Outbound`;
+            count.style.color = isSecure ? "var(--green)" : "var(--red, #e03131)";
+        }
         if (metric)  metric.innerText   = data.outbound_connection_count;
         if (fwVal)   fwVal.innerText    = data.firewall_status  || "pfctl Active";
         if (sockVal) sockVal.innerText  = data.outbound_connection_count;

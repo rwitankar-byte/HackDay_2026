@@ -201,12 +201,16 @@ class AgentOrchestrator:
             elif tool_name == "code_sandbox":
                 return execute_python_code(code_string=args.get("code", ""))
             elif tool_name == "doc_generator":
+                findings = args.get("findings", ["Physical inspection complete"])
+                # Coerce string to list — LLM sometimes returns findings as a single string
+                if isinstance(findings, str):
+                    findings = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', findings) if s.strip()] or [findings]
                 return generate_approval_note(
                     title=args.get("title", "Inspection Approval Note"),
                     ref_number=args.get("ref_number", "REF-2026-001"),
                     plant_unit=args.get("plant_unit", "Refinery Unit"),
                     inspection_date=args.get("inspection_date", "2026-09-23"),
-                    findings=args.get("findings", ["Physical inspection complete"]),
+                    findings=findings,
                     sop_reference=args.get("sop_reference", "Per SOP guidelines"),
                     recommendation=args.get("recommendation", "Recommended for approval"),
                     filename=args.get("filename", "Approval_Note.docx"),
@@ -575,7 +579,13 @@ class AgentOrchestrator:
                             )
 
                 # ── Required-field check + contradiction issues ────────────
-                issues = check_required_fields(extracted, confidence)
+                # Combine OCR text with conversation history so that user-supplied
+                # answers to earlier clarifying questions satisfy the field check
+                # and prevent an infinite clarification loop.
+                combined_text = extracted + "\n" + "\n".join(
+                    msg.get("content", "") for msg in history
+                )
+                issues = check_required_fields(combined_text, confidence)
                 for tag, _ in contradiction_notes.items():
                     issues.append(f"__contradiction__{tag}")
 
