@@ -1,4 +1,4 @@
-# Karyalay AI (कार्यालय AI)
+# Karyalaya AI (कार्यालय AI)
 ### Air-Gapped Autonomous Intelligence for Government, Defence & PSU Operations
 **HackDay 2026 Submission**
 
@@ -11,7 +11,7 @@
 
 ## 📌 Project Overview
 
-**Karyalay AI** is a fully self-hosted, air-gapped agentic AI workbench engineered for high-security environments—including defence manufacturing, oil refineries, nuclear facilities, and government public sector undertakings (PSUs).
+**Karyalaya AI** is a fully self-hosted, air-gapped agentic AI workbench engineered for high-security environments—including defence manufacturing, oil refineries, nuclear facilities, and government public sector undertakings (PSUs).
 
 In sovereign and classified operations, routine knowledge tasks (e.g., verifying hydrostatic valve test reports, cross-referencing plant Standard Operating Procedures, executing data verification scripts, and preparing signed approval notes) cannot touch cloud AI due to strict confidentiality mandates. Staff are left to either perform tedious manual verifications or risk data leaks.
 
