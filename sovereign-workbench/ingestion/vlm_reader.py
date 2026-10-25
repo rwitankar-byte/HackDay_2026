@@ -18,7 +18,20 @@ if BASE_DIR not in sys.path:
 from ingestion.ocr import extract_text_ocr
 
 def encode_image_base64(image_path: str) -> str:
-    """Encodes image file to base64 string for local API payload."""
+    """Encodes image or first page of PDF to base64 string for local API payload."""
+    if image_path.lower().endswith(".pdf"):
+        try:
+            import pymupdf
+            import io
+            doc = pymupdf.open(image_path)
+            if len(doc) > 0:
+                page = doc[0]
+                pix = page.get_pixmap(dpi=150)
+                img_bytes = pix.tobytes("png")
+                return base64.b64encode(img_bytes).decode("utf-8")
+        except Exception as e:
+            print(f"[VLM WARNING] PDF rasterization error: {e}")
+    
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 

@@ -41,6 +41,15 @@ _BODY_FONT              = "Calibri"
 _BODY_SIZE              = Pt(11)
 _HEADING_SIZE           = Pt(12)
 
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    _REPORTLAB_AVAILABLE = True
+except ImportError:
+    _REPORTLAB_AVAILABLE = False
+
 
 def _set_cell_bg(cell, hex_color: str) -> None:
     """Shades a table cell background with the given hex colour (e.g. 'F2F2F2')."""
@@ -115,6 +124,14 @@ def create_approval_note_docx(
     sop_citations: Optional[List[Dict[str, str]]] = None,
 ) -> str:
     """Builds and saves an approval note .docx at target_path. Returns the saved path."""
+    # Defensive guard: LLM sometimes returns findings as a single string.
+    # Iterating a string produces character-by-character bullets — always coerce to list.
+    if isinstance(findings, str):
+        # Split on sentence boundaries or newlines to produce meaningful bullet items
+        import re as _re
+        parts = [s.strip() for s in _re.split(r'(?<=[.!?])\s+|\n+', findings) if s.strip()]
+        findings = parts if parts else [findings]
+
     doc = Document()
 
     # ── Document-level font defaults ───────────────────────────────────────────
@@ -293,6 +310,227 @@ def create_approval_note_docx(
     return target_path
 
 
+def create_approval_note_pdf(
+    title: str,
+    ref_number: str,
+    plant_unit: str,
+    inspection_date: str,
+    findings: List[str],
+    sop_reference: str,
+    recommendation: str,
+    target_path: str,
+    is_official: bool = False,
+    sop_citations: Optional[List[Dict[str, str]]] = None,
+) -> str:
+    """Builds and saves a high-quality approval note .pdf at target_path."""
+    if not _REPORTLAB_AVAILABLE:
+        return ""
+
+    if isinstance(findings, str):
+        import re as _re
+        parts = [s.strip() for s in _re.split(r'(?<=[.!?])\s+|\n+', findings) if s.strip()]
+        findings = parts if parts else [findings]
+
+    doc = SimpleDocTemplate(
+        target_path,
+        pagesize=letter,
+        leftMargin=45,
+        rightMargin=45,
+        topMargin=45,
+        bottomMargin=45,
+    )
+
+    styles = getSampleStyleSheet()
+    normal = styles["Normal"]
+
+    primary_color = colors.HexColor("#003366")
+    accent_color = colors.HexColor("#00467F") if is_official else colors.HexColor("#8C5000")
+    text_color = colors.HexColor("#222222")
+    muted_color = colors.HexColor("#555555")
+    border_color = colors.HexColor("#CCCCCC")
+
+    title_style = ParagraphStyle(
+        "DocTitle",
+        parent=normal,
+        fontName="Helvetica-Bold",
+        fontSize=15,
+        leading=19,
+        textColor=primary_color,
+        spaceAfter=12,
+    )
+
+    org_style = ParagraphStyle(
+        "OrgHeader",
+        parent=normal,
+        fontName="Helvetica-Bold",
+        fontSize=10,
+        leading=13,
+        textColor=accent_color,
+        spaceAfter=2,
+    )
+
+    sub_style = ParagraphStyle(
+        "SubHeader",
+        parent=normal,
+        fontName="Helvetica",
+        fontSize=8.5,
+        leading=11,
+        textColor=muted_color,
+        spaceAfter=8,
+    )
+
+    badge_text = "OFFICIAL COMPLIANCE DOCUMENT — VERIFIED" if is_official else "AI DRAFT — PENDING HUMAN SIGN-OFF"
+    badge_bg = colors.HexColor("#EBF3FA") if is_official else colors.HexColor("#FFF3CD")
+
+    badge_style = ParagraphStyle(
+        "StatusBadge",
+        parent=normal,
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=11,
+        textColor=accent_color,
+        alignment=1,
+    )
+
+    sec_heading_style = ParagraphStyle(
+        "SecHeading",
+        parent=normal,
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        leading=15,
+        textColor=accent_color,
+        spaceBefore=12,
+        spaceAfter=6,
+    )
+
+    body_style = ParagraphStyle(
+        "BodyTextCustom",
+        parent=normal,
+        fontName="Helvetica",
+        fontSize=10,
+        leading=14,
+        textColor=text_color,
+    )
+
+    bullet_style = ParagraphStyle(
+        "BulletCustom",
+        parent=normal,
+        fontName="Helvetica",
+        fontSize=10,
+        leading=14,
+        textColor=text_color,
+        leftIndent=14,
+        firstLineIndent=-10,
+        spaceAfter=4,
+    )
+
+    story = []
+
+    # Sovereign Org Header
+    story.append(Paragraph("GOVERNMENT OF INDIA &bull; SOVEREIGN OPERATIONS WORKBENCH", org_style))
+    story.append(Paragraph("Statutory Compliance &amp; Plant Safety Division &bull; Air-Gapped Verification", sub_style))
+
+    # Badge table
+    badge_table = Table([[Paragraph(badge_text, badge_style)]], colWidths=[522])
+    badge_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), badge_bg),
+        ("BOX", (0, 0), (-1, -1), 1, accent_color),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story.append(badge_table)
+    story.append(Spacer(1, 10))
+
+    # Title
+    story.append(Paragraph(title, title_style))
+
+    # Metadata table
+    meta_data = [
+        [Paragraph("<b>Document Title:</b>", body_style), Paragraph(title, body_style)],
+        [Paragraph("<b>Reference No.:</b>", body_style), Paragraph(ref_number, body_style)],
+        [Paragraph("<b>Plant / Unit:</b>", body_style), Paragraph(plant_unit, body_style)],
+        [Paragraph("<b>Inspection Date:</b>", body_style), Paragraph(inspection_date, body_style)],
+    ]
+    meta_table = Table(meta_data, colWidths=[140, 382])
+    meta_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F2F2F2")),
+        ("BACKGROUND", (1, 0), (1, -1), colors.white),
+        ("BOX", (0, 0), (-1, -1), 0.75, border_color),
+        ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 12))
+
+    # Section 1: Findings
+    story.append(Paragraph("1. Key Inspection Findings", sec_heading_style))
+    for f in findings:
+        story.append(Paragraph(f"&bull;&nbsp;&nbsp;{f}", bullet_style))
+    story.append(Spacer(1, 8))
+
+    # Section 2: SOP Grounding
+    story.append(Paragraph("2. SOP Grounding &amp; Reference", sec_heading_style))
+    story.append(Paragraph(sop_reference, body_style))
+    story.append(Spacer(1, 8))
+
+    # Section 3: Recommendation
+    story.append(Paragraph("3. Recommendation &amp; Next Steps", sec_heading_style))
+    story.append(Paragraph(recommendation, body_style))
+    story.append(Spacer(1, 8))
+
+    # Section 4: Citations if available
+    if sop_citations:
+        story.append(Paragraph("4. Source References", sec_heading_style))
+        cite_data = [
+            [Paragraph("<b>SOP Document</b>", body_style), Paragraph("<b>Section</b>", body_style), Paragraph("<b>Relevant Clause</b>", body_style)]
+        ]
+        for c in sop_citations:
+            cite_data.append([
+                Paragraph(c.get("source", ""), body_style),
+                Paragraph(c.get("section", ""), body_style),
+                Paragraph(c.get("excerpt", "")[:180], body_style),
+            ])
+        cite_table = Table(cite_data, colWidths=[140, 100, 282])
+        cite_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F2F2F2")),
+            ("BOX", (0, 0), (-1, -1), 0.75, border_color),
+            ("INNERGRID", (0, 0), (-1, -1), 0.5, border_color),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(cite_table)
+        story.append(Spacer(1, 10))
+
+    # Sign-off block
+    story.append(Spacer(1, 16))
+    if is_official:
+        signoff_text = "<b>Approved &amp; Signed by:</b><br/><br/>____________________________________<br/>Chief Inspection Officer / Unit Head<br/><i>Statutory Inspection Directorate</i>"
+    else:
+        signoff_text = "<b>PENDING HUMAN REVIEW &amp; SIGN-OFF</b><br/><br/>____________________________________<br/>Authorized Approver Signature Required<br/><i>Status: Awaiting Verification</i>"
+
+    sign_table = Table([[Paragraph(signoff_text, body_style)]], colWidths=[522])
+    sign_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAFAFA")),
+        ("BOX", (0, 0), (-1, -1), 0.75, border_color),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+    ]))
+    story.append(sign_table)
+
+    try:
+        doc.build(story)
+    except Exception as e:
+        print(f"[PDF GENERATION ERROR] {e}")
+    return target_path
+
+
 def generate_approval_note(
     title: str,
     ref_number: str,
@@ -311,8 +549,11 @@ def generate_approval_note(
     """
     try:
         os.makedirs(DELIVERABLES_DIR, exist_ok=True)
-        draft_filename = f"DRAFT_{filename}"
-        draft_path     = os.path.join(DELIVERABLES_DIR, draft_filename)
+        base_name = os.path.splitext(filename)[0]
+        draft_docx_filename = f"DRAFT_{base_name}.docx"
+        draft_pdf_filename  = f"DRAFT_{base_name}.pdf"
+        draft_docx_path     = os.path.join(DELIVERABLES_DIR, draft_docx_filename)
+        draft_pdf_path      = os.path.join(DELIVERABLES_DIR, draft_pdf_filename)
 
         create_approval_note_docx(
             title=title,
@@ -322,7 +563,20 @@ def generate_approval_note(
             findings=findings,
             sop_reference=sop_reference,
             recommendation=recommendation,
-            target_path=draft_path,
+            target_path=draft_docx_path,
+            is_official=False,
+            sop_citations=sop_citations or [],
+        )
+
+        create_approval_note_pdf(
+            title=title,
+            ref_number=ref_number,
+            plant_unit=plant_unit,
+            inspection_date=inspection_date,
+            findings=findings,
+            sop_reference=sop_reference,
+            recommendation=recommendation,
+            target_path=draft_pdf_path,
             is_official=False,
             sop_citations=sop_citations or [],
         )
@@ -335,7 +589,7 @@ def generate_approval_note(
             "findings":        findings,
             "sop_reference":   sop_reference,
             "recommendation":  recommendation,
-            "target_filename": filename,
+            "target_filename": f"{base_name}.docx",
             "sop_citations":   sop_citations or [],
         }
 
@@ -343,7 +597,8 @@ def generate_approval_note(
             "status":                  "draft_created",
             "requires_human_approval": True,
             "message":                 "AI Draft generated. Human sign-off required before finalizing.",
-            "draft_file":              draft_filename,
+            "draft_file":              draft_docx_filename,
+            "draft_pdf":               draft_pdf_filename,
             "draft_payload":           draft_payload,
         }
     except Exception as e:
@@ -356,7 +611,7 @@ def finalize_official_document(
     human_confirmed: bool,
 ) -> Dict[str, Any]:
     """
-    Writes the official .docx deliverable to workspace/deliverables/.
+    Writes the official .docx and .pdf deliverables to workspace/deliverables/.
 
     ENFORCEMENT GATE: raises PermissionError if human_confirmed is not exactly True.
     This function is intentionally excluded from the agent tool registry and is only
@@ -372,28 +627,55 @@ def finalize_official_document(
     try:
         os.makedirs(DELIVERABLES_DIR, exist_ok=True)
         filename = draft_payload.get("target_filename", "Official_Approval_Note.docx")
-        if not filename.endswith(".docx"):
-            filename += ".docx"
-        target_path = os.path.join(DELIVERABLES_DIR, filename)
+        base_name = os.path.splitext(filename)[0]
+        docx_filename = f"{base_name}.docx"
+        pdf_filename  = f"{base_name}.pdf"
+        docx_path = os.path.join(DELIVERABLES_DIR, docx_filename)
+        pdf_path  = os.path.join(DELIVERABLES_DIR, pdf_filename)
+
+        title = draft_payload.get("title", "Inspection Approval Note")
+        ref_number = draft_payload.get("ref_number", "REF-2026-001")
+        plant_unit = draft_payload.get("plant_unit", "Plant Unit")
+        inspection_date = draft_payload.get("inspection_date", "2026-09-23")
+        findings = draft_payload.get("findings", [])
+        sop_reference = draft_payload.get("sop_reference", "Per SOP guidelines")
+        recommendation = draft_payload.get("recommendation", "Approved")
+        sop_citations = draft_payload.get("sop_citations", [])
 
         create_approval_note_docx(
-            title=draft_payload.get("title", "Inspection Approval Note"),
-            ref_number=draft_payload.get("ref_number", "REF-2026-001"),
-            plant_unit=draft_payload.get("plant_unit", "Plant Unit"),
-            inspection_date=draft_payload.get("inspection_date", "2026-09-23"),
-            findings=draft_payload.get("findings", []),
-            sop_reference=draft_payload.get("sop_reference", "Per SOP guidelines"),
-            recommendation=draft_payload.get("recommendation", "Approved"),
-            target_path=target_path,
+            title=title,
+            ref_number=ref_number,
+            plant_unit=plant_unit,
+            inspection_date=inspection_date,
+            findings=findings,
+            sop_reference=sop_reference,
+            recommendation=recommendation,
+            target_path=docx_path,
             is_official=True,
-            sop_citations=draft_payload.get("sop_citations", []),
+            sop_citations=sop_citations,
+        )
+
+        create_approval_note_pdf(
+            title=title,
+            ref_number=ref_number,
+            plant_unit=plant_unit,
+            inspection_date=inspection_date,
+            findings=findings,
+            sop_reference=sop_reference,
+            recommendation=recommendation,
+            target_path=pdf_path,
+            is_official=True,
+            sop_citations=sop_citations,
         )
 
         return {
             "status":            "success",
-            "official_filename": filename,
-            "file_path":         target_path,
-            "message":           f"Human approval confirmed. Official deliverable '{filename}' created.",
+            "filename":          docx_filename,
+            "official_filename": docx_filename,
+            "pdf_filename":      pdf_filename,
+            "file_path":         docx_path,
+            "pdf_path":          pdf_path,
+            "message":           f"Human approval confirmed. Official deliverables '{docx_filename}' and '{pdf_filename}' created.",
         }
     except PermissionError:
         raise

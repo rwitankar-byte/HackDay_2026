@@ -38,7 +38,11 @@ _TABLE_LINE_RE = re.compile(r'^\s*\|.+\|', re.MULTILINE)
 def get_chroma_client() -> chromadb.PersistentClient:
     """Initializes local persistent Chroma DB client."""
     os.makedirs(VECTOR_DB_DIR, exist_ok=True)
-    return chromadb.PersistentClient(path=VECTOR_DB_DIR)
+    from chromadb.config import Settings
+    return chromadb.PersistentClient(
+        path=VECTOR_DB_DIR,
+        settings=Settings(anonymized_telemetry=False, is_persistent=True)
+    )
 
 
 def extract_text_from_pdf(file_path: str) -> str:

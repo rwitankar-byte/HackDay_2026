@@ -17,6 +17,15 @@ Session state is kept in memory (SESSIONS dict). Each browser tab gets a UUID se
 
 import os
 import sys
+
+# Ensure strict air-gap: disable telemetry in ChromaDB, ONNX Runtime, and HuggingFace
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_TELEMETRY"] = "False"
+os.environ["ORT_DISABLE_TELEMETRY"] = "1"
+os.environ["ONNXRUNTIME_TELEMETRY_DISABLE"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
 import json
 import asyncio
 import shutil
@@ -119,7 +128,13 @@ async def api_chat(
     )
 
     async def sse_generator():
-        file_path = os.path.join(UPLOADS_DIR, uploaded_file) if uploaded_file else None
+        # Use the file from this request, or fall back to the file from
+        # a prior turn in the same session (e.g. after a clarification reply).
+        if uploaded_file:
+            file_path = os.path.join(UPLOADS_DIR, uploaded_file)
+            session["last_uploaded_file"] = file_path
+        else:
+            file_path = session.get("last_uploaded_file")
 
         agent_messages = []  # Collect agent output for history
         step_counter = 1
@@ -423,4 +438,5 @@ def api_download_deliverable(filename: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    app_target = "ui.app:app" if os.path.exists(os.path.join(os.getcwd(), "ui", "app.py")) else "app:app"
+    uvicorn.run(app_target, host="0.0.0.0", port=8000, reload=True)

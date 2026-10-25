@@ -47,7 +47,11 @@ def search_knowledge_base(
                 "error":  f"Vector database not found at {VECTOR_DB_DIR}. Run ingest_pipeline.py first.",
             }
 
-        client = chromadb.PersistentClient(path=VECTOR_DB_DIR)
+        from chromadb.config import Settings
+        client = chromadb.PersistentClient(
+            path=VECTOR_DB_DIR,
+            settings=Settings(anonymized_telemetry=False, is_persistent=True)
+        )
 
         try:
             collection = client.get_collection(name="karyalaya_sops")

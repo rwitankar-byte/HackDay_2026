@@ -20,12 +20,83 @@ def preprocess_image(image_path: str) -> Image.Image:
 
 def extract_text_ocr(image_path: str) -> Dict[str, Any]:
     """
-    Performs OCR on an image and calculates extraction confidence.
+    Performs OCR on an image or PDF document and calculates extraction confidence.
+    Supports .png, .jpg, .jpeg, .tiff, and multi-page .pdf files.
     Returns extracted text, confidence (0.0 - 1.0), and fallback recommendation.
     """
     if not os.path.exists(image_path):
-        return {"status": "error", "error": f"Image file not found: {image_path}"}
+        return {"status": "error", "error": f"Image/PDF file not found: {image_path}"}
 
+    # Handle PDF files using PyMuPDF
+    if image_path.lower().endswith(".pdf"):
+        try:
+            import pymupdf
+            doc = pymupdf.open(image_path)
+            
+            # Step 1: Check for embedded digital text first (fastest & highest quality)
+            direct_text_parts = []
+            for page in doc:
+                txt = page.get_text().strip()
+                if txt:
+                    direct_text_parts.append(txt)
+            
+            full_direct_text = "\n\n".join(direct_text_parts).strip()
+            if len(full_direct_text) > 100:
+                return {
+                    "status": "success",
+                    "extracted_text": full_direct_text,
+                    "confidence": 0.98,
+                    "fallback_required": False,
+                    "word_count": len(full_direct_text.split()),
+                    "engine": "PyMuPDF Digital Text Extraction"
+                }
+
+            # Step 2: If scanned/image PDF, rasterize pages and run OCR (up to 10 pages for speed)
+            ocr_text_parts = []
+            confidences = []
+            max_pages = min(len(doc), 10)
+            
+            for p_idx in range(max_pages):
+                page = doc[p_idx]
+                pix = page.get_pixmap(dpi=150)
+                page_img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                
+                # Run OCR on the rasterized page
+                data = pytesseract.image_to_data(page_img, output_type=pytesseract.Output.DICT)
+                page_words = []
+                for i in range(len(data['text'])):
+                    word = data['text'][i].strip()
+                    conf = float(data['conf'][i])
+                    if word and conf > 0:
+                        page_words.append(word)
+                        confidences.append(conf)
+                
+                if page_words:
+                    ocr_text_parts.append(f"--- Page {p_idx + 1} ---\n" + " ".join(page_words))
+
+            extracted_text = "\n\n".join(ocr_text_parts)
+            avg_confidence = (sum(confidences) / len(confidences) / 100.0) if confidences else 0.0
+            fallback_required = (avg_confidence < 0.70) or (len(extracted_text) < 15)
+
+            return {
+                "status": "success",
+                "extracted_text": extracted_text,
+                "confidence": round(avg_confidence, 2),
+                "fallback_required": fallback_required,
+                "word_count": len(extracted_text.split()),
+                "engine": f"PyMuPDF + Pytesseract OCR (Processed {max_pages} pages)"
+            }
+
+        except Exception as e:
+            return {
+                "status": "warning",
+                "extracted_text": "",
+                "confidence": 0.0,
+                "fallback_required": True,
+                "error": f"PDF OCR warning: {e}. Falling back to Vision Model."
+            }
+
+    # Handle standard image files (PNG, JPG, TIFF, etc.)
     try:
         img = preprocess_image(image_path)
         
@@ -56,6 +127,7 @@ def extract_text_ocr(image_path: str) -> Dict[str, Any]:
             "word_count": len(text_words),
             "engine": "Pytesseract OCR (Pass 1)"
         }
+
 
     except Exception as e:
         # If tesseract binary is not installed or errors out, trigger VLM fallback

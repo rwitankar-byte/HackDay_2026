@@ -45,7 +45,11 @@ def search_templates(
                 "style_chunks":         [],
             }
 
-        client = chromadb.PersistentClient(path=VECTOR_DB_DIR)
+        from chromadb.config import Settings
+        client = chromadb.PersistentClient(
+            path=VECTOR_DB_DIR,
+            settings=Settings(anonymized_telemetry=False, is_persistent=True)
+        )
         try:
             collection = client.get_collection(name="karyalaya_templates")
         except Exception:
